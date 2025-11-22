@@ -18,6 +18,21 @@
         <div id="cart-items" class="space-y-4">
             </div>
         <div id="cart-summary" class="mt-8 bg-white p-6 rounded-lg shadow-md hidden">
+            <div class="mb-6 border-b border-gray-200 pb-6">
+                <label for="payment-method" class="block text-gray-700 text-sm font-bold mb-2">
+                    Select Payment Method
+                </label>
+                <div class="relative">
+                    <select id="payment-method" class="block appearance-none w-full bg-gray-50 border border-gray-300 text-gray-700 py-3 px-4 pr-8 rounded leading-tight focus:outline-none focus:bg-white focus:border-green-500">
+                        <option value="Card">Credit Card</option>
+                        <option value="Cash">Cash on delivery</option>
+                        <option value="PayPal">PayPal</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                        <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                    </div>
+                </div>
+            </div>
             <div class="flex justify-between text-xl font-bold text-gray-800 mb-4">
                 <span>Total:</span>
                 <span id="total-price">0.00 Lei</span>
@@ -87,7 +102,10 @@
         }
 
         async function placeOrder() {
-            const res = await fetch('api.php?action=place_order', { method: 'POST' });
+            const paymentMethod = document.getElementById('payment-method').value;
+            const res = await fetch('api.php?action=place_order', { method: 'POST', body: JSON.stringify({ 
+                        payment_method: paymentMethod 
+                    })});
             const data = await res.json();
             if (data.success) {
                 alert('Order placed successfully!');

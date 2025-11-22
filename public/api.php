@@ -133,17 +133,35 @@ if ($method === 'POST') {
             exit;
         }
 
+        $paymentMethod = $input['payment_method'] ?? 'Card';
+
         $total = 0;
         foreach ($_SESSION['cart'] as $item) {
             $total += parsePrice($item['price']) * $item['qty'];
         }
 
-        $stmt = $pdo->prepare("INSERT INTO orders (user_email, total_price) VALUES (?, ?)");
-        if ($stmt->execute([$_SESSION['user'], $total])) {
+        try {
+            $stmt = $pdo->prepare("INSERT INTO orders (user_email, total_price) VALUES (?, ?)");
+            $stmt->execute([$_SESSION['user'], $total]);
+            
+            $orderId = $pdo->lastInsertId();
+
+            $sqlItems = "INSERT INTO order_items (order_id, product_id, quantity) VALUES (?, ?, ?)";
+            $stmtItems = $pdo->prepare($sqlItems);
+
+            foreach ($_SESSION['cart'] as $item) {
+                $stmtItems->execute([$orderId, $item['id'], $item['qty']]);
+            }
+
+            $sqlPayment = "INSERT INTO payments (order_id, payment_method, amount, status) VALUES (?, ?, ?, ?)";
+            $stmtPayment = $pdo->prepare($sqlPayment);
+            $stmtPayment->execute([$orderId, $paymentMethod, $total, 'completed']);
+
             unset($_SESSION['cart']);
             echo json_encode(['success' => true]);
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Failed to save order']);
+
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Order failed: ' . $e->getMessage()]);
         }
         exit;
     }
