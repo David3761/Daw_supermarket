@@ -16,7 +16,7 @@ function parsePrice($priceStr) {
 if ($method === 'GET') {
     if ($action === 'products') {
         $search = $_GET['search'] ?? '';
-        $sql = "SELECT * FROM products WHERE name LIKE ?";
+        $sql = "SELECT * FROM products WHERE name LIKE ? AND is_available = 1";
         $stmt = $pdo->prepare($sql);
         $stmt->execute(["%$search%"]);
         $products = $stmt->fetchAll();
@@ -36,6 +36,16 @@ if ($method === 'GET') {
         echo json_encode($_SESSION['cart'] ?? []);
         exit;
     }
+
+    if ($action === 'users') {
+        if (($_SESSION['role'] ?? 'user') !== 'admin') {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            exit;
+        }
+        $stmt = $pdo->query("SELECT id, email, role, is_banned FROM users");
+        echo json_encode($stmt->fetchAll());
+        exit;
+    }
     
     if ($action === 'check_auth') {
         echo json_encode(['logged_in' => isset($_SESSION['user'])]);
@@ -50,13 +60,18 @@ if ($method === 'POST') {
         $email = $input['email'];
         $password = $input['password'];
         
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ? AND password = ?");
-        $stmt->execute([$email, $password]);
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
+        $stmt->execute([$email]);
         $user = $stmt->fetch();
 
-        if ($user) {
+        if ($user && password_verify($password, $user['password'])) {
+            if ($user['is_banned'] == 1) {
+                echo json_encode(['success' => false, 'message' => 'This account has been banned.']);
+                exit;
+            }
             $_SESSION['user'] = $user['email'];
-            echo json_encode(['success' => true]);
+            $_SESSION['role'] = $user['role'];
+            echo json_encode(['success' => true, 'role' => $user['role']]);
         } else {
             echo json_encode(['success' => false, 'message' => 'Invalid email or password']);
         }
@@ -79,8 +94,9 @@ if ($method === 'POST') {
             exit;
         }
 
+        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
         $stmt = $pdo->prepare("INSERT INTO users (email, password) VALUES (?, ?)");
-        if ($stmt->execute([$email, $password])) {
+        if ($stmt->execute([$email, $hashedPassword])) {
             echo json_encode(['success' => true]);
         } else {
             echo json_encode(['success' => false, 'message' => 'Database error']);
@@ -90,7 +106,16 @@ if ($method === 'POST') {
 
     if ($action === 'add_cart') {
         $product = $input['product'];
-        $id = $product['id'];
+        $id = $product['id'] ?? 0;
+
+        $stmt = $pdo->prepare("SELECT * FROM products WHERE id = ? AND is_available = 1");
+        $stmt->execute([$id]);
+        $dbProduct = $stmt->fetch();
+
+        if (!$dbProduct) {
+            echo json_encode(['success' => false, 'message' => 'Product not found']);
+            exit;
+        }
         
         if (!isset($_SESSION['cart'])) $_SESSION['cart'] = [];
         
@@ -99,9 +124,9 @@ if ($method === 'POST') {
         } else {
             $_SESSION['cart'][$id] = [
                 'id' => $id,
-                'name' => $product['name'],
-                'price' => $product['price'],
-                'image' => $product['image_urls'][0],
+                'name' => $dbProduct['name'],
+                'price' => $dbProduct['price'],
+                'image' => $dbProduct['image_url'],
                 'qty' => 1
             ];
         }
@@ -115,7 +140,7 @@ if ($method === 'POST') {
         
         if ($qty <= 0) {
             unset($_SESSION['cart'][$id]);
-        } else {
+        } elseif (isset($_SESSION['cart'][$id])) {
             $_SESSION['cart'][$id]['qty'] = $qty;
         }
         echo json_encode(['success' => true]);
@@ -163,6 +188,44 @@ if ($method === 'POST') {
         } catch (Exception $e) {
             echo json_encode(['success' => false, 'message' => 'Order failed: ' . $e->getMessage()]);
         }
+        exit;
+    }
+
+    if ($action === 'add_product') {
+        if (($_SESSION['role'] ?? 'user') !== 'admin') {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            exit;
+        }
+        $name = $input['name'];
+        $price = $input['price'];
+        $image = $input['image'];
+
+        $stmt = $pdo->prepare("INSERT INTO products (name, price, image_url) VALUES (?, ?, ?)");
+        if ($stmt->execute([$name, $price, $image])) {
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to add product']);
+        }
+        exit;
+    }
+
+    if ($action === 'delete_product') {
+        if (($_SESSION['role'] ?? 'user') !== 'admin') exit;
+        $id = $input['id'];
+        $stmt = $pdo->prepare("UPDATE products SET is_available = 0 WHERE id = ?");
+        $stmt->execute([$id]);
+        echo json_encode(['success' => true]);
+        exit;
+    }
+
+    if ($action === 'ban_user') {
+        if (($_SESSION['role'] ?? 'user') !== 'admin') exit;
+        $id = $input['id'];
+        $is_banned = $input['is_banned'] ? 1 : 0;
+        
+        $stmt = $pdo->prepare("UPDATE users SET is_banned = ? WHERE id = ?");
+        $stmt->execute([$is_banned, $id]);
+        echo json_encode(['success' => true]);
         exit;
     }
 }

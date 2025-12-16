@@ -1,8 +1,8 @@
 <?php
-$host = 'db';
-$db   = 'appdb';
-$user = 'david';
-$pass = 'parolainfolderpublic';
+$host = 'localhost';
+$db   = 'dvalicu2_appdb';
+$user = 'dvlaicu2_appuser';
+$pass = 'a1p2:KO5q*4rSP';
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";

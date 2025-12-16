@@ -75,7 +75,7 @@
         }
 
         async function addToCart(id) {
-            const product = allProducts.find(p => p.id === id);
+            const product = allProducts.find(p => p.id == id);
 
             if (!product) {
                 alert("Error: Product not found");
