@@ -53,7 +53,7 @@
                     const card = `
                         <div class="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col hover:shadow-xl transition">
                             <div class="h-48 overflow-hidden flex items-center justify-center bg-white p-4">
-                                <img src="${p.image_urls[0]}" alt="${p.name}" class="object-contain h-48 w-full">
+                                <img src="${p.image_urls[0]}" alt="${p.name}" class="object-contain h-48 w-full" onerror="this.style.display='none'">
                             </div>
                             <div class="p-4 flex flex-col flex-grow border-t border-gray-100">
                                 <h3 class="text-lg font-semibold text-gray-800 mb-2 leading-tight">${p.name}</h3>

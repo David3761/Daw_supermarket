@@ -16,7 +16,7 @@ function parsePrice($priceStr) {
 if ($method === 'GET') {
     if ($action === 'products') {
         $search = $_GET['search'] ?? '';
-        $sql = "SELECT * FROM products WHERE name LIKE ? AND is_available = 1";
+        $sql = "SELECT * FROM products WHERE name LIKE ? AND (is_available = 1 OR is_available IS NULL)";
         $stmt = $pdo->prepare($sql);
         $stmt->execute(["%$search%"]);
         $products = $stmt->fetchAll();
@@ -25,7 +25,7 @@ if ($method === 'GET') {
                 "id" => $p['id'],
                 "name" => $p['name'],
                 "price" => $p['price'],
-                "image_urls" => [$p['image_url']]
+                "image_urls" => [$p['image_url'] ?? $p['image'] ?? '']
             ];
         }, $products);
         echo json_encode($formatted);
@@ -108,7 +108,7 @@ if ($method === 'POST') {
         $product = $input['product'];
         $id = $product['id'] ?? 0;
 
-        $stmt = $pdo->prepare("SELECT * FROM products WHERE id = ? AND is_available = 1");
+        $stmt = $pdo->prepare("SELECT * FROM products WHERE id = ? AND (is_available = 1 OR is_available IS NULL)");
         $stmt->execute([$id]);
         $dbProduct = $stmt->fetch();
 
@@ -155,6 +155,15 @@ if ($method === 'POST') {
         
         if (empty($_SESSION['cart'])) {
             echo json_encode(['success' => false, 'message' => 'Cart is empty']);
+            exit;
+        }
+
+        $stmt = $pdo->prepare("SELECT is_banned FROM users WHERE email = ?");
+        $stmt->execute([$_SESSION['user']]);
+        $user = $stmt->fetch();
+
+        if ($user && $user['is_banned'] == 1) {
+            echo json_encode(['success' => false, 'message' => 'Your account is banned. You cannot place orders.']);
             exit;
         }
 

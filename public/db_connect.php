@@ -1,8 +1,8 @@
 <?php
 $host = 'localhost';
-$db   = 'dvalicu2_appdb';
-$user = 'dvlaicu2_appuser';
-$pass = 'a1p2:KO5q*4rSP';
+$db   = 'dvlaicu2_appdb';
+$user = 'dvlaicu2_appdb';
+$pass = 'parolanenorocita';
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
@@ -17,4 +17,3 @@ try {
 } catch (\PDOException $e) {
     throw new \PDOException($e->getMessage(), (int)$e->getCode());
 }
-?>
