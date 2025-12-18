@@ -52,7 +52,7 @@
             const data = await res.json();
             
             if (data.success) {
-                showMsg("Account created! Redirecting...", "green");
+                showMsg("Account created! You need to log in. Redirecting...", "green");
                 setTimeout(() => {
                     window.location.href = 'login.php';
                 }, 1500);

@@ -1,6 +1,7 @@
 <?php
 session_start();
 require 'db_connect.php';
+require 'send_email.php';
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST');
@@ -97,6 +98,7 @@ if ($method === 'POST') {
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
         $stmt = $pdo->prepare("INSERT INTO users (email, password) VALUES (?, ?)");
         if ($stmt->execute([$email, $hashedPassword])) {
+            sendRegisterConfirmation($email);
             echo json_encode(['success' => true]);
         } else {
             echo json_encode(['success' => false, 'message' => 'Database error']);
@@ -192,6 +194,7 @@ if ($method === 'POST') {
             $stmtPayment->execute([$orderId, $paymentMethod, $total, 'completed']);
 
             unset($_SESSION['cart']);
+            sendOrderConfirmation($_SESSION['user'], $orderId);
             echo json_encode(['success' => true]);
 
         } catch (Exception $e) {
