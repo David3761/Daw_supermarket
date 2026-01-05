@@ -15,6 +15,52 @@ function parsePrice($priceStr) {
 }
 
 if ($method === 'GET') {
+    if ($action === 'exchange_rate') {
+        $url = "https://www.bnr.ro/nbrfxrates.xml";
+        $context = stream_context_create(['http' => ['timeout' => 5]]);
+        $xmlStr = @file_get_contents($url, false, $context);
+        $rate = null;
+        if ($xmlStr) {
+            $xml = simplexml_load_string($xmlStr);
+            foreach ($xml->Body->Cube->Rate as $r) {
+                if ((string)$r['currency'] === 'EUR') {
+                    $rate = (float)$r;
+                    break;
+                }
+            }
+        }
+        echo json_encode(['eur' => $rate]);
+        exit;
+    }
+
+    if ($action === 'stats') {
+        if (($_SESSION['role'] ?? 'user') !== 'admin') exit;
+        $products = $pdo->query("SELECT name, price FROM products")->fetchAll();
+        usort($products, function($a, $b) {
+            return parsePrice($b['price']) <=> parsePrice($a['price']);
+        });
+        $products = array_slice($products, 0, 5);
+        echo json_encode($products);
+        exit;
+    }
+
+    if ($action === 'export_products') {
+        if (($_SESSION['role'] ?? 'user') !== 'admin') exit;
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename=products_export.csv');
+        
+        $output = fopen('php://output', 'w');
+        fputs($output, "\xEF\xBB\xBF");
+        fputcsv($output, ['ID', 'Name', 'Price', 'Image']);
+
+        $stmt = $pdo->query("SELECT id, name, price, image_url FROM products");
+        while ($row = $stmt->fetch()) {
+            fputcsv($output, $row);
+        }
+        fclose($output);
+        exit;
+    }
+
     if ($action === 'products') {
         $search = $_GET['search'] ?? '';
         $sql = "SELECT * FROM products WHERE name LIKE ? AND (is_available = 1 OR is_available IS NULL)";
@@ -238,6 +284,34 @@ if ($method === 'POST') {
         $stmt = $pdo->prepare("UPDATE users SET is_banned = ? WHERE id = ?");
         $stmt->execute([$is_banned, $id]);
         echo json_encode(['success' => true]);
+        exit;
+    }
+
+    if ($action === 'import_products') {
+        if (($_SESSION['role'] ?? 'user') !== 'admin') exit;
+        
+        if (isset($_FILES['file']) && $_FILES['file']['error'] === 0) {
+            $f = fopen($_FILES['file']['tmp_name'], 'r');
+            while (($row = fgetcsv($f)) !== false) {
+                if (in_array('Name', $row) && in_array('Price', $row)) {
+                    continue;
+                }
+
+                $name = $price = $image = null;
+                if (count($row) >= 4) {
+                    $name = $row[1]; $price = $row[2]; $image = $row[3];
+                }
+
+                if ($name && $price) {
+                    $stmt = $pdo->prepare("INSERT INTO products (name, price, image_url) VALUES (?, ?, ?)");
+                    $stmt->execute([$name, $price, $image]);
+                }
+            }
+            fclose($f);
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Upload failed']);
+        }
         exit;
     }
 }

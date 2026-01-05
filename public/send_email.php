@@ -28,7 +28,7 @@ function sendOrderConfirmation($userEmail, $orderId) {
             <p>Your order <b>#$orderId</b> has been recieved and we will process it shortly.</p>
         ";
         
-        $mail->AltBody = "Multumim pentru comanda! Id-ul este #$orderId. Comanda dvs. va fi procesata in cel mai scurt timp.";
+        $mail->AltBody = ">Your order <b>#$orderId</b> has been recieved and we will process it shortly.";
 
         $mail->send();
         return true;
